@@ -11,7 +11,7 @@ A more complete demonstration can be found [here](https://github.com/AgoraIO/Ope
 
 ## Prerequisites
 
-* Android Studio 2.0 or above.
+* Android Studio 3.1 or above.
 * Android device (e.g. Nexus 5X). A real device is recommended because some simulators have missing functionality or lack the performance necessary to run the sample.
 
 ## Quick Start
@@ -40,7 +40,7 @@ The SDK must be integrated into the sample project before it can opened and buil
 ...
 dependencies {
     ...
-    compile 'io.agora.rtc:full-sdk:2.2.3' 
+    implementation 'io.agora.rtc:full-sdk:2.3.0'
 }
 ```
 
@@ -66,7 +66,7 @@ dependencies {
 * [Create Visual Assets](#create-visual-assets)
 * [Design the User Interface](#design-the-user-interface)
 
-For details about the APIs used to develop this sample, see the [Agora.io Documentation version 2.2](https://docs.agora.io/en/2.2).
+For details about the APIs used to develop this sample, see the [Agora.io Documentation version 2.3](https://docs.agora.io/en/2.3).
 
 
 ## Set Permissions
@@ -83,6 +83,7 @@ In the `AndroidManifest.xml` file, `uses-permissions` settings were added for th
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> <!-- (Optional) Just in case writing logs on sdcard -->
 
     <application
         android:allowBackup="true"
@@ -149,7 +150,7 @@ The following imports define the interface of the Agora API that provides commun
  - `io.agora.rtc.RtcEngine`
  - `io.agora.rtc.video.VideoCanvas`
 
-Create a singleton by invoking [RtcEngine.create()](https://docs.agora.io/en/2.2/product/Interactive%20Gaming/API%20Reference/game_android?platform=Android) during initialization, passing the application ID stored in *strings.xml* and a reference to the activity's event handler. The Agora API uses events to inform the application about Agora engine runtime events, such as joining or leaving a channel and adding new participants. 
+Create a singleton by invoking [RtcEngine.create()](https://docs.agora.io/en/2.3/product/Interactive%20Gaming/API%20Reference/game_android?platform=Android) during initialization, passing the application ID stored in *strings.xml* and a reference to the activity's event handler. The Agora API uses events to inform the application about Agora engine runtime events, such as joining or leaving a channel and adding new participants.
 
 ```java
 import io.agora.rtc.Constants;
@@ -187,7 +188,9 @@ protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_video_chat_view);
 
-    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO) && checkSelfPermission(Manifest.permission.CAMERA, PERMISSION_REQ_ID_CAMERA)) {
+    if (checkSelfPermission(REQUESTED_PERMISSIONS[0], PERMISSION_REQ_ID) &&
+            checkSelfPermission(REQUESTED_PERMISSIONS[1], PERMISSION_REQ_ID) &&
+            checkSelfPermission(REQUESTED_PERMISSIONS[2], PERMISSION_REQ_ID)) {
         initAgoraEngineAndJoinChannel();
     }
 }
@@ -199,7 +202,11 @@ The next step is to enable video mode, configure the video encoding profile, and
 ```Java
 private void setupVideoProfile() {
     mRtcEngine.enableVideo();
-    mRtcEngine.setVideoProfile(Constants.VIDEO_PROFILE_360P, false);
+
+//  mRtcEngine.setVideoProfile(Constants.VIDEO_PROFILE_360P, false); // Earlier than 2.3.0
+    mRtcEngine.setVideoEncoderConfiguration(new VideoEncoderConfiguration(VideoEncoderConfiguration.VD_640x360, VideoEncoderConfiguration.FRAME_RATE.FRAME_RATE_FPS_15,
+            VideoEncoderConfiguration.STANDARD_BITRATE,
+            VideoEncoderConfiguration.ORIENTATION_MODE.ORIENTATION_MODE_FIXED_PORTRAIT));
 }
 
 private void initAgoraEngineAndJoinChannel() {
@@ -211,12 +218,12 @@ private void initAgoraEngineAndJoinChannel() {
 
 In the sample, a helper method called `setupVideoProfile()` contains this logic and is invoked by `initAgoraEngineAndJoinChannel()` during the activity's creation:
 
-- It starts by enabling video with [enableVideo](https://docs.agora.io/en/2.2/product/Video/API%20Reference/communication_android_video?platform=Android). 
-- The video encoding profile is then set to 360p and the `swapWidthAndHeight` parameter is set to `false` via [setVideoProfile](https://docs.agora.io/en/2.2/product/Video/API%20Reference/communication_android_video?platform=Android). Each profile includes a set of parameters such as resolution, frame rate, bitrate, etc. 
+- It starts by enabling video with [enableVideo](https://docs.agora.io/en/2.3/product/Video/API%20Reference/communication_android_video?platform=Android).
+- The video encoding profile is then set to 360p and the `orientationMode` parameter is set to `ORIENTATION_MODE_FIXED_PORTRAIT` via [setVideoEncoderConfiguration](https://docs.agora.io/en/2.3/product/Video/API%20Reference/communication_android_video?platform=Android). Each profile includes a set of parameters such as resolution, frame rate, bitrate, etc.
 
-Note: If a device's camera does not support the specified resolution, the SDK automatically chooses a suitable camera resolution. However, the encoder resolution still uses the profile specified by `setVideoProfile()`. 
+Note: If a device's camera does not support the specified resolution, the SDK automatically chooses a suitable camera resolution. However, the encoder resolution still uses the profile specified by `setVideoEncoderConfiguration()`.
 
-Since this configuration takes place before entering a channel, the end user will start in video mode rather than audio mode. If video mode is enabled during a call, the app will switch from audio to video mode. 
+Since this configuration takes place before entering a channel, the end user will start in video mode rather than audio mode. If video mode is enabled during a call, the app will switch from audio to video mode.
 
 ### Set up Local Video
 The logic for the local video feed is contained within a helper method called `setupLocalVideo()` that is invoked by `initAgoraEngineAndJoinChannel()`:
@@ -227,7 +234,7 @@ private void setupLocalVideo() {
     SurfaceView surfaceView = RtcEngine.CreateRendererView(getBaseContext());
     surfaceView.setZOrderMediaOverlay(true);
     container.addView(surfaceView);
-    mRtcEngine.setupLocalVideo(new VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_ADAPTIVE, 0));
+    mRtcEngine.setupLocalVideo(new VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_FIT, 0));
 }
 
 private void initAgoraEngineAndJoinChannel() {
@@ -242,7 +249,7 @@ private void initAgoraEngineAndJoinChannel() {
 * The Z order media overlay is set to `true` to overlay the view on top of the parent view.
 * The View is added to the `local_video_view_container` layout.
 
-The call to [setupLocalVideo](https://docs.agora.io/en/2.2/product/Video/API%20Reference/communication_android_video?platform=Android) then passes a new `VideoCanvas` object to the engine that binds the video window (view) of local video streams and configures the video display settings. 
+The call to [setupLocalVideo](https://docs.agora.io/en/2.3/product/Video/API%20Reference/communication_android_video?platform=Android) then passes a new `VideoCanvas` object to the engine that binds the video window (view) of local video streams and configures the video display settings.
 
 ### Join a Channel
 A helper method called `joinChannel()` invokes `RtcEngine.joinChannel()` enables a user to join a specific channel:
@@ -253,7 +260,7 @@ private void joinChannel() {
 }
 ```
 
-The `channelName` parameter receives the name of the channel to join (`demoChannel1`). The call to [RtcEngine.joinChannel()](https://docs.agora.io/en/2.2/product/Video/API%20Reference/communication_android_video?platform=Android) enables the speakerphone when using Agora.
+The `channelName` parameter receives the name of the channel to join (`demoChannel1`). The call to [RtcEngine.joinChannel()](https://docs.agora.io/en/2.3/product/Video/API%20Reference/communication_android_video?platform=Android) enables the speakerphone when using Agora.
 
 **Note**: Users in the same channel can talk to each other, but users with different App IDs cannot call each other even if they join the same channel.
 
@@ -316,7 +323,7 @@ private void setupRemoteVideo(int uid) {
 
     SurfaceView surfaceView = RtcEngine.CreateRendererView(getBaseContext());
     container.addView(surfaceView);
-    mRtcEngine.setupRemoteVideo(new VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_ADAPTIVE, uid));
+    mRtcEngine.setupRemoteVideo(new VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_FIT, uid));
 
     surfaceView.setTag(uid); // for mark purpose
     View tipMsg = findViewById(R.id.quick_tips_when_use_agora_sdk); // optional UI
